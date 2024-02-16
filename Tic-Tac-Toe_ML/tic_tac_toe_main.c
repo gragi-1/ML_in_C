@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <unistd.h>
 
 #define BOARD_SIZE 3
 #define EPISODES 10000
@@ -374,6 +375,7 @@ void evaluate_agent(Board *board, Agent *agent) {
     printf("Wins: %d, Draws: %d, Losses: %d\n", wins, draws, losses);
 }
 
+// Guardar la tabla q en un .csv (despues del entrenamiento)
 void save_q_table_to_file(double q_table[NUM_STATES][NUM_ACTIONS], const char *filename) {
     FILE *file = fopen(filename, "w");
     if (file == NULL) {
@@ -394,6 +396,27 @@ void save_q_table_to_file(double q_table[NUM_STATES][NUM_ACTIONS], const char *f
     fclose(file);
 }
 
+// Cargar una tabla q cualquiera para cambair de modelo entrenado
+void load_q_table_from_file(double q_table[NUM_STATES][NUM_ACTIONS], const char *filename) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        printf("Error opening file!\n");
+        return;
+    }
+
+    for (int state = 0; state < NUM_STATES; state++) {
+        for (int action = 0; action < NUM_ACTIONS; action++) {
+            if (fscanf(file, "%lf,", &q_table[state][action]) != 1) {
+                printf("Error reading file!\n");
+                fclose(file);
+                return;
+            }
+        }
+    }
+
+    fclose(file);
+}
+
 int main() {
     Board board;
     Agent agent;
@@ -405,6 +428,9 @@ int main() {
     int turn = 0; // 0 para el agente, 1 para el usuario
 
     evaluate_agent(&board, &agent);
+
+    // Carga una tabla q cualquiera (descomentar para cargar la tabla)
+    //load_q_table_from_file(agent.q_table, "q_table_example.csv");
 
     initialize_board(&board);
     while (1) {
