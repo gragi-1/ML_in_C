@@ -6,10 +6,10 @@
 
 #define BOARD_SIZE 3
 #define EPISODES 10000
-#define EPSILON 0.2
 #define ALPHA 0.5
 #define GAMMA 0.9
-#define NUM_STATES 19683 // 3^9
+#define EPSILON 0.2
+#define NUM_STATES 19683
 #define NUM_ACTIONS 9
 #define REWARD_WIN 1.0
 #define REWARD_LOSE (-1.0)
@@ -19,353 +19,249 @@
 #define O 2
 
 typedef struct {
-    int cells[BOARD_SIZE][BOARD_SIZE]; // Represents the state of the board, where 0 is an empty cell, 1 is an 'X' and 2 is an 'O'
-} Board;
+	int board[BOARD_SIZE][BOARD_SIZE];
+}Board;
 
 typedef struct {
-    double q_table[NUM_STATES][NUM_ACTIONS]; // Q Table
-    int player; // Current player
+	double q[NUM_STATES][NUM_ACTIONS];
+	int player;
 } Agent;
 
-// Function to initialize agent and Q table
-void initialize_agent(Agent *agent) {
-    for (int i = 0; i < NUM_STATES; ++i) {
-        for (int j = 0; j < NUM_ACTIONS; ++j) {
-            agent->q_table[i][j] = 0.0; // Initialize all Q values to 0
-        }
-    }
-    agent->player = X; // The agent plays as 'X'
-}
-
-// Function to initialize the board
-void initialize_board(Board *board) {
-    for (int i = 0; i < BOARD_SIZE; ++i) {
-        for (int j = 0; j < BOARD_SIZE; ++j) {
-            board->cells[i][j] = EMPTY;
-        }
-    }
-}
-
-// Dashboard display function
-void display_board(Board *board) {
-    printf("=====\n");
-    for (int i = 0; i < BOARD_SIZE; ++i) {
-        for (int j = 0; j < BOARD_SIZE; ++j) {
-            switch (board->cells[i][j]) {
-                case EMPTY:
-                    printf(" ");
-                    break;
-                case X:
-                    printf("X");
-                    break;
-                case O:
-                    printf("O");
-                    break;
-            }
-            if (j < 2) {
-                printf("|");
-            }
-        }
-        printf("\n");
-        if (i < 2) {
-            printf("-----\n");
-        }
-    }
-    printf("=====\n");
-}
-
-// Function to update Q values
-void update_q_table(double q_table[NUM_STATES][NUM_ACTIONS], int state, int action, double reward, int next_state) {
-    double old_value = q_table[state][action];
-    double max_next_value = -INFINITY;
-    // Calculate the maximum Q value in the new state
-    for (int i = 0; i < NUM_ACTIONS; i++) {
-        if (q_table[next_state][i] > max_next_value) {
-            max_next_value = q_table[next_state][i];
-        }
-    }
-
-    // Update Q value for given state and action
-    q_table[state][action] = old_value + ALPHA * (reward + GAMMA * max_next_value - old_value);
-}
-
-// Function to calculate the state of the board
-int calculate_state(Board *board) {
-    int state = 0;
-    int power = 1; // Start at 3^0
-    for (int i = 0; i < BOARD_SIZE; ++i) {
-        for (int j = 0; j < BOARD_SIZE; ++j) {
-            state += board->cells[i][j] * power;
-            power *= BOARD_SIZE; // Increases the power of 3
-        }
-    }
-    return (state);
-}
-
-// Function to update the board status
-void update_board(Board *board, int action, Agent *agent) {
-    // Calculate the row and column of the action
-    int row = action / BOARD_SIZE;
-    int col = action % BOARD_SIZE;
-
-	board->cells[row][col] = agent->player;
-	agent->player = (agent->player == X) ? O : X;
-}
-
-// Function to check if the game is over (winner)
-bool is_win_state(Board *board) {
-    // Check rows and columns
-    for (int i = 0; i < BOARD_SIZE; i++) {
-        if ((board->cells[i][0] == board->cells[i][1] && board->cells[i][1] == board->cells[i][2] && board->cells[i][0] != 0) ||
-            (board->cells[0][i] == board->cells[1][i] && board->cells[1][i] == board->cells[2][i] && board->cells[0][i] != 0)) {
-            return (true);
-        }
-    }
-
-    // Check diagonals
-    if ((board->cells[0][0] == board->cells[1][1] && board->cells[1][1] == board->cells[2][2] && board->cells[0][0] != 0) ||
-        (board->cells[0][2] == board->cells[1][1] && board->cells[1][1] == board->cells[2][0] && board->cells[0][2] != 0)) {
-        return (true);
-    }
-
-    // No win state
-    return (false);
-}
-
-// Function to check if the game is over (draw)
-bool is_draw_state(Board *board) {
-    // Check if all cells are filled
-    for (int i = 0; i < BOARD_SIZE; i++) {
-        for (int j = 0; j < BOARD_SIZE; j++) {
-            if (board->cells[i][j] == 0) {
-                // If any cell is empty, it's not a draw state
-                return (false);
-            }
-        }
-    }
-
-    // If all cells are filled and it's not a win state, it's a draw state
-    if (!is_win_state(board)) {
-        return (true);
-    }
-
-    // Otherwise, it's not a draw state
-    return (false);
-}
-
-bool is_game_over(Board *board) {
-	return (is_win_state(board) || is_draw_state(board));
-}
-
-double calculate_reward(Board *board, int player_turn) {
-	if (is_win_state(board)) {
-		if (player_turn == X) {
-			return (REWARD_WIN); // Agent wins
+//Function to initialize the board
+void initBoard(Board *board) {
+	for (int i = 0; i < BOARD_SIZE; i++) {
+		for (int j = 0; j < BOARD_SIZE; j++) {
+			board->board[i][j] = EMPTY;
 		}
-	} else if (is_draw_state(board)) {
-		return (REWARD_DRAW); // Draw
 	}
-	return (REWARD_LOSE); // Agent losses
 }
 
-// Function to get user action
-int get_user_action(Board *board) {
-    int action;
-    while (1) {
-        printf("Enter your action (0-8): ");
-        scanf("%d", &action);
-        if (action < 0 || action > 8 || board->cells[action / BOARD_SIZE][action % BOARD_SIZE] != EMPTY) {
-            printf("Invalid action. Please select an empty cell (0-8).\n");
-        } else {
-            break;
-        }
-    }
-    return (action);
+//Function to initialize the agent
+void initAgent(Agent *agent) {
+	for (int i = 0; i < NUM_STATES; i++) {
+		for (int j = 0; j < NUM_ACTIONS; j++) {
+			agent->q[i][j] = 0.0;
+		}
+	}
+	agent->player = X;
 }
 
-// Function to select an action based on the epsilon-greedy policy
-int select_action(Agent *agent, Board *board, int state) {
-    // Generate a random number between 0 and 1
-    srand(time(NULL));
-    double rand_num = (double)rand() / (double)RAND_MAX;
-
-    if (rand_num < EPSILON) {
-        // Exploration: Select a random action
-        int action;
-        int attempts = 0;  // Add a counter for attempts
-        int empty_cells = 0;
-        for (int i = 0; i < NUM_ACTIONS; ++i) {
-            if (board->cells[i / BOARD_SIZE][i % BOARD_SIZE] == EMPTY) {
-                empty_cells++;
-            }
-        }
-        if (empty_cells == 0) {
-            return (-1);  // No valid actions
-        }
-        do {
-            action = rand() % NUM_ACTIONS;
-            attempts++;  // Increment attempts counter
-        } while (board->cells[action / BOARD_SIZE][action % BOARD_SIZE] != EMPTY && attempts < NUM_ACTIONS); // Make sure the cell is empty
-        return (action);
-    } else {
-        // Exploitation: Select the best known action
-        int best_action = -1;
-        double best_q_value = -INFINITY;
-        for (int action = 0; action < NUM_ACTIONS; ++action) {
-            if (board->cells[action / BOARD_SIZE][action % BOARD_SIZE] == EMPTY && agent->q_table[state][action] > best_q_value) {
-                best_action = action;
-                best_q_value = agent->q_table[state][action];
-            }
-        }
-        return (best_action);
-    }
+//Function to print the board
+void printBoard(Board *board) {
+	for (int i = 0; i < BOARD_SIZE; i++) {
+		for (int j = 0; j < BOARD_SIZE; j++) {
+			if (board->board[i][j] == EMPTY) {
+				printf(" ");
+			}
+			else if (board->board[i][j] == X) {
+				printf("X");
+			}
+			else {
+				printf("O");
+			}
+			if (j < BOARD_SIZE - 1) {
+				printf("|");
+			}
+		}
+		printf("\n");
+		if (i < BOARD_SIZE - 1) {
+			printf("-----\n");
+		}
+	}
 }
 
-// Function to evaluate agent performance
-void evaluate_agent(Board *board, Agent *agent) {
-    int wins = 0;
-    int draws = 0;
-    int losses = 0;
-    int state;
-    int new_state;
-	int action;
-
-    for (int i = 0; i < EPISODES; ++i) {
-        initialize_board(board); // Reset the board for each game
-        int game_over = 0;
-
-        while (!game_over) {
-        state = calculate_state(board);
-
-        // Agent movement
-		action = select_action(agent, board, state);
-        update_board(board, action, agent);
-
-        // Check if the game is over
-        game_over = is_game_over(board);
-        }
-
-		// Check the result of the game
-		agent->player = (agent->player == X) ? O : X;
-		double reward = calculate_reward(board, agent->player);
-
-		(reward == REWARD_WIN) ? wins++ : (reward == REWARD_DRAW) ? draws++ : losses++;
-
-		new_state = calculate_state(board);
-		update_q_table(agent->q_table, state, select_action(agent, board, new_state), reward, new_state);
-    }
-
-    // Print evaluation statistics
-    printf("Wins: %d, Draws: %d, Losses: %d\n", wins, draws, losses);
+//Function to update the q-values
+void updateQ(Agent *agent, int state, int action, double reward, int next_state) {
+	double max_next_q = agent->q[next_state][0];
+	for (int i = 1; i < NUM_ACTIONS; i++) {
+		if (agent->q[next_state][i] > max_next_q) {
+			max_next_q = agent->q[next_state][i];
+		}
+	}
+	agent->q[state][action] += ALPHA * (reward + GAMMA * max_next_q - agent->q[state][action]);
 }
 
-// Save the q table in a .csv (after training)
-void save_q_table_to_file(double q_table[NUM_STATES][NUM_ACTIONS], const char *filename) {
-    FILE *file = fopen(filename, "w");
-    if (file == NULL) {
-        printf("Error opening file!\n");
-        return;
-    }
-
-    for (int state = 0; state < NUM_STATES; state++) {
-        for (int action = 0; action < NUM_ACTIONS; action++) {
-            fprintf(file, "%f", q_table[state][action]);
-            if (action < NUM_ACTIONS - 1) {
-                fprintf(file, ",");
-            }
-        }
-        fprintf(file, "\n");
-    }
-
-    fclose(file);
+//Function to get the state
+int getState(Board *board, int player) {
+	int state = 0;
+	int k = 0;
+	for (int i = 0; i < BOARD_SIZE; i++) {
+		for (int j = 0; j < BOARD_SIZE; j++) {
+			if (board->board[i][j] == EMPTY) {
+				state += 0 * pow(3, k);
+			}
+			else if (board->board[i][j] == player) {
+				state += 1 * pow(3, k);
+			}
+			else {
+				state += 2 * pow(3, k);
+			}
+			k++;
+		}
+	}
+	return state;
 }
 
-// Load any table to change the trained mode
-void load_q_table_from_file(double q_table[NUM_STATES][NUM_ACTIONS], const char *filename) {
-    FILE *file = fopen(filename, "r");
-    if (file == NULL) {
-        printf("Error opening file!\n");
-        return;
-    }
-
-    for (int state = 0; state < NUM_STATES; state++) {
-        for (int action = 0; action < NUM_ACTIONS; action++) {
-            if (fscanf(file, "%lf,", &q_table[state][action]) != 1) {
-                printf("Error reading file!\n");
-                fclose(file);
-                return;
-            }
-        }
-    }
-
-    fclose(file);
+//Function to update the board
+void updateBoard(Board *board, int action, int player) {
+	int i = action / BOARD_SIZE;
+	int j = action % BOARD_SIZE;
+	board->board[i][j] = player;
 }
 
-int main(void) {
-    Board board;
-    Agent agent;
-    srand(time(NULL)); // Initialize the random number generator
-    initialize_board(&board);
-    initialize_agent(&agent);
+//Function to check if there is a winner
+bool checkWin (Board * board){
+	// Check rows and columns
+	for (int i = 0; i < BOARD_SIZE; i++) {
+		if ((board->board[i][0] == board->board[i][1] && board->board[i][1] == board->board[i][2] && board->board[i][0] != 0) ||
+			(board->board[0][i] == board->board[1][i] && board->board[1][i] == board->board[2][i] && board->board[0][i] != 0)) {
+			return (true);
+		}
+	}
 
-    int state = calculate_state(&board);
-    int turn = 0; // 0 for the agent, 1 for the user
+	// Check diagonals
+	if ((board->board[0][0] == board->board[1][1] && board->board[1][1] == board->board[2][2] && board->board[0][0] != 0) ||
+		(board->board[0][2] == board->board[1][1] && board->board[1][1] == board->board[2][0] && board->board[0][2] != 0)) {
+		return (true);
+	}
 
-    evaluate_agent(&board, &agent);
+	// No win state
+	return (false);
+}
 
-	// Show final table
-	save_q_table_to_file(agent.q_table, "q_table.csv");
+//Function to check if there is a draw
+bool checkDraw(Board *board) {
+	for (int i = 0; i < BOARD_SIZE; i++) {
+		for (int j = 0; j < BOARD_SIZE; j++) {
+			if (board->board[i][j] == EMPTY) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
 
-    // Load any table (uncomment to load the table)
-    //load_q_table_from_file(agent.q_table, "q_table_example.csv");
+//Function to check if the game is over
+bool gameOver(Board *board, int player) {
+	return (checkWin(board) || checkDraw(board));
+}
 
-    initialize_board(&board);
-    while (1) {
-        // Show board
-        display_board(&board);
+//Function to get the reward
+double getReward(Board *board, int player) {
+	if (checkWin(board)) {
+		if (player == X) {
+			return REWARD_WIN;
+		}
+		else {
+			return REWARD_LOSE;
+		}
+	}
+	else if (checkDraw(board)) {
+		return REWARD_DRAW;
+	}
+	else {
+		return 0.0;
+	}
+}
 
-        int action;
-        if (turn == 0) {
-            // Allow the agent to select an action
-            action = select_action(&agent, &board, state);
-        } else {
-            // Get user action
-            action = get_user_action(&board);
-        }
+//Function to get the best action following the epsilon-greedy policy
+int getBestAction(Agent *agent, int state) {
+	int best_action = 0;
+	if ((double)rand() / (double)RAND_MAX < EPSILON) {
+		best_action = rand() % NUM_ACTIONS;
+	}
+	else {
+		double max_q = agent->q[state][0];
+		for (int i = 1; i < NUM_ACTIONS; i++) {
+			if (agent->q[state][i] > max_q) {
+				max_q = agent->q[state][i];
+				best_action = i;
+			}
+		}
+	}
+	return best_action;
+}
 
-        // Update board status
-        update_board(&board, action, &agent);
+//Function to get the next state
+int getNextState(Board *board, int action, int player) {
+	Board next_board;
+	initBoard(&next_board);
+	for (int i = 0; i < BOARD_SIZE; i++) {
+		for (int j = 0; j < BOARD_SIZE; j++) {
+			next_board.board[i][j] = board->board[i][j];
+		}
+	}
+	updateBoard(&next_board, action, player);
+	return getState(&next_board, player);
+}
 
-        // Calculate the reward
-        double reward = calculate_reward(&board, turn == 0 ? X : O);
+//Function to train the agent
+void train(Agent *agent) {
+	Board board;
+	initBoard(&board);
+	for (int i = 0; i < EPISODES; i++) {
+		initBoard(&board);
+		int state = getState(&board, agent->player);
+		while (!gameOver(&board, agent->player)) {
+			updateBoard(&board, getBestAction(agent, state), agent->player);
+			int next_state = getState(&board, agent->player);
+			double reward = getReward(&board, agent->player);
+			updateQ(agent, state, getBestAction(agent, state), reward, next_state);
+			state = next_state;
+			agent->player = (agent->player == X) ? O : X;
+		}
+	}
+}
 
-        // Calculate the new state
-        int new_state = calculate_state(&board);
+//Function to export the q-values to a .csv file
+void exportQ(Agent *agent) {
+	FILE *file = fopen("q_values.csv", "w");
+	for (int i = 0; i < NUM_STATES; i++) {
+		for (int j = 0; j < NUM_ACTIONS; j++) {
+			fprintf(file, "%lf", agent->q[i][j]);
+			if (j < NUM_ACTIONS - 1) {
+				fprintf(file, ",");
+			}
+		}
+		fprintf(file, "\n");
+	}
+	fclose(file);
+}
 
-        // Update Q values if it is the agent's turn
-        if (turn == 0) {
-            update_q_table(agent.q_table, state, action, reward, new_state);
-        }
-
-        // Update status
-        state = new_state;
-
-        // Change shift
-        turn = 1 - turn;
-
-        // End the game if an end state is reached
-        if (is_game_over(&board)) {
-            if (is_win_state(&board)) {
-                if (turn == 1) {
-                    printf("El agente (IA) ha ganado el juego!\n");
-                } else {
-                    printf("El jugador ha ganado el juego!\n");
-                }
-            } else if (is_draw_state(&board)) {
-                printf("El juego ha terminado en empate.\n");
-            }
-            break;
-        }
-    }
-    return (0);
+//Function to play against the agent
+int main (){
+	Agent agent;
+	initAgent(&agent);
+	Board board;
+	initBoard(&board);
+	train(&agent);
+	exportQ(&agent);
+	while (!gameOver(&board, agent.player)) {
+		printBoard(&board);
+		if (agent.player == X) {
+			int action;
+			printf("Enter the action: ");
+			scanf("%d", &action);
+			updateBoard(&board, action, agent.player);
+		}
+		else {
+			int state = getState(&board, agent.player);
+			int action = getBestAction(&agent, state);
+			updateBoard(&board, action, agent.player);
+		}
+		agent.player = (agent.player == X) ? O : X;
+	}
+	printBoard(&board);
+	agent.player = (agent.player == X) ? O : X;
+	double reward = getReward(&board, agent.player);
+	if (reward == REWARD_WIN) {
+		printf("You win!\n");
+	}
+	else if (reward == REWARD_LOSE) {
+		printf("You lose!\n");
+	}
+	else {
+		printf("Draw!\n");
+	}
+	return 0;
 }
