@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <time.h>
 #include <stdio.h>
 #include <math.h>
 #include <stdbool.h>
@@ -182,19 +181,6 @@ int getBestAction(Agent *agent, int state) {
 	return best_action;
 }
 
-//Function to get the next state
-int getNextState(Board *board, int action, int player) {
-	Board next_board;
-	initBoard(&next_board);
-	for (int i = 0; i < BOARD_SIZE; i++) {
-		for (int j = 0; j < BOARD_SIZE; j++) {
-			next_board.board[i][j] = board->board[i][j];
-		}
-	}
-	updateBoard(&next_board, action, player);
-	return getState(&next_board, player);
-}
-
 //Function to train the agent
 void train(Agent *agent) {
 	Board board;
@@ -215,7 +201,7 @@ void train(Agent *agent) {
 
 //Function to export the q-values to a .csv file
 void exportQ(Agent *agent) {
-	FILE *file = fopen("q_values.csv", "w");
+	FILE *file = fopen("q_table.csv", "w");
 	for (int i = 0; i < NUM_STATES; i++) {
 		for (int j = 0; j < NUM_ACTIONS; j++) {
 			fprintf(file, "%lf", agent->q[i][j]);
